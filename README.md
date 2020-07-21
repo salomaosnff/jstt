@@ -63,10 +63,10 @@ is the same as:
 
 If you need to render the same template for a lot of data, you can use the parse function and use its return several times.
 
-```typescript
-import { parse } from 'jstt';
+```javascript
+const jstt = require('jstt');
 
-const tableTemplate = parse(`
+const tableTemplate = jstt.parse(`
 <table>
   <thead>
     <tr>
