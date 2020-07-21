@@ -1,0 +1,9 @@
+{
+  "include": ["src"],
+  "compilerOptions": {
+    "outDir": "dist/",
+    "target": "ES5",
+    "lib": ["ESNext"],
+    "declaration": true
+  }
+}
