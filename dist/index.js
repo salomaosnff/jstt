@@ -42,7 +42,7 @@ var tokenTypes = [
     { name: 'text', test: /^(?:<\?|\s*<!)=(.*?)(?:\?>|!>\s*)/ },
     { name: 'html', test: /^(?:<\?|\s*<!)-(.*?)(?:\?>|!>\s*)/ },
     { name: 'code', test: /^(?:<\?|\s*<!)(.*?)(?:\?>|!>\s*)/ },
-    { name: 'content', test: /^((?:.|\s)*?)(?:([\s]*<!|<\?))/ },
+    { name: 'content', test: /^((?:.|\s)+?)(?:([\s]*<!|<\?))/ },
     { name: 'content', test: /^(.+)/ },
 ];
 function lexer(code) {

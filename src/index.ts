@@ -3,7 +3,7 @@ const tokenTypes = [
   { name: 'text', test: /^(?:<\?|\s*<!)=(.*?)(?:\?>|!>\s*)/ },
   { name: 'html', test: /^(?:<\?|\s*<!)-(.*?)(?:\?>|!>\s*)/ },
   { name: 'code', test: /^(?:<\?|\s*<!)(.*?)(?:\?>|!>\s*)/ },
-  { name: 'content', test: /^((?:.|\s)*?)(?:([\s]*<!|<\?))/ },
+  { name: 'content', test: /^((?:.|\s)+?)(?:([\s]*<!|<\?))/ },
   { name: 'content', test: /^(.+)/ },
 ]
 
@@ -12,16 +12,16 @@ function lexer(code: string) {
 
   while (code) {
     let match: RegExpMatchArray | null | undefined
-
+    
     for (const type of tokenTypes) {
       match = type.test.exec(code)
-
+      
       if (match) {
         tokens.push({
           type: type.name, 
           match 
         })
-
+        
         if (type.name === 'content') {
           code = code.substr(match[1].length)
         } else {
