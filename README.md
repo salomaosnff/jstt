@@ -10,10 +10,10 @@ $ yarn add jstt
 
 ## First Template
 
-```typescript
-import { render } from 'jstt';
+```javascript
+const jstt = require('jstt');
 
-const html = render(`<h1><?= message ?></h1>`, {
+const html = jstt.render(`<h1><?= message ?></h1>`, {
   message: 'Hello world!'
 });
 
@@ -21,10 +21,11 @@ console.log(html);
 ```
 
 ## Using JavaScript
-```typescript
-import { render } from 'jstt';
 
-const html = render(`
+```javascript
+const jstt = require('jstt');
+
+const html = jstt.render(`
 <? if (flag) { ?>
   <h1><?= message ?></h1>
 <? } ?>
