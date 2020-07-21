@@ -6,10 +6,17 @@
   "author": "Salomao Neto<salomaosnff3@gmail.com>",
   "license": "MIT",
   "types": "dist/",
+  "repository": "git@github.com:salomaosnff/jstt.git",
   "scripts": {
     "build": "tsc",
     "benchmark": "ts-node benchmark/index.ts"
   },
+  "keywords": [
+    "template engine",
+    "preprocessor",
+    "template",
+    "engine"
+  ],
   "devDependencies": {
     "@types/benchmark": "^1.0.33",
     "@types/ejs": "^3.0.4",
