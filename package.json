@@ -9,7 +9,8 @@
   "repository": "git@github.com:salomaosnff/jstt.git",
   "scripts": {
     "build": "tsc",
-    "benchmark": "ts-node benchmark/index.ts"
+    "benchmark": "ts-node benchmark/index.ts",
+    "test": "node --inspect=9999 -r ts-node benchmark/index.ts"
   },
   "keywords": [
     "template engine",
@@ -20,9 +21,12 @@
   "devDependencies": {
     "@types/benchmark": "^1.0.33",
     "@types/ejs": "^3.0.4",
+    "@types/handlebars": "^4.1.0",
     "@types/node": "^14.0.24",
     "benchmark": "^2.1.4",
     "ejs": "^3.1.3",
+    "handlebars": "^4.7.6",
+    "nunjucks": "^3.2.2",
     "ts-node": "^8.10.2",
     "typescript": "^3.9.7"
   }

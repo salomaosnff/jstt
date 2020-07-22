@@ -6,27 +6,34 @@ const tokenTypes = [
   { name: 'content', test: /^((?:.|\s)+?)(<\?|<#|\s*<!|\s*<!#)|(?:.|\s)+/ },
 ]
 
+interface ParsedTemplate {
+  source: string
+  render(data: Record<string, any>): string
+  renderAsync(data: Record<string, any>): Promise<string>
+}
+
 function lexer(code: string) {
   const tokens: any[] = []
 
   while (code) {
     let match: RegExpMatchArray | null | undefined
-    
+
     for (const type of tokenTypes) {
       match = type.test.exec(code)
+
       
       if (match) {
         const token = {
           type: type.name,
-          content: match[1] || match[0]
+          content: match[1] || match[0],
         }
-
-        if (token.type === 'text' || token.type === 'raw' || token.type === 'comment') {
+        
+        if (token.type !== 'content') {
           code = code.substring(match[0].length)
         } else {
           code = code.substring(token.content.length)
         }
-
+        
         tokens.push(token)
         
         break
@@ -41,66 +48,30 @@ function lexer(code: string) {
   return tokens
 }
 
-const utils = {
-  safeText(text: string) {
-    return String(text)
-      .replace(/&/gim, '&amp;')
-      .replace(/</gim, '&lt;')
-      .replace(/>/gim, '&gt;')
-  }
-}
-
 function quote(text: string) {
-  return '`' + text + '`'
-}
-
-function append(exp: string) {
-  return `$$ += ${exp};\n`
-}
-
-function util(name: string, ...args: string[]) {
-  return `$.${name}(${args.join(', ')})`
-}
-
-function flush() {
-  return '\nreturn $$;'
+  return '`' + text.replace('`', '\\`') + '`'
 }
 
 function parser(tokens: any[]) {
-  let code = "let $$ = '';\n"
-
+  let code = '';
+  
   while (tokens.length) {
     let token = tokens.shift()
-
+    
     if (token.type === 'comment') continue
 
     if (token.type === 'content') {
-      code += append(quote(token.content))
-      continue
+      code += `$__append(${quote(token.content)});\n`
     }
 
-    if (token.type === 'text' || token.type === 'raw') {
-      const exp = String(token.content).trim()
-
-      if (token.type === 'text') {
-        code += append(util('safeText', exp))
-      } else {
-        code += append(exp)
-      }
-
-      continue
+    else if (token.type === 'text' || token.type === 'raw') {
+      code += `$__append(${String(token.content).trim()}, ${token.type === 'text'});\n`
     }
 
-    if (token.type === 'code') {
-      code += token.content + '\n'
-    }
-
-    if (token.type === 'end_code') {
-      continue
+    else if (token.type === 'code') {
+      code += `${token.content};\n`
     }
   }
-
-  code += flush()
 
   return code
 }
@@ -110,27 +81,36 @@ const AsyncFunction = eval(
   'Object.getPrototypeOf(async function() {}).constructor'
 )
 
-interface ParsedTemplate {
-  code: string
-  render(data: Record<string, any>): string
-  renderAsync(data: Record<string, any>): Promise<string>
-}
-
 export function parse(code: string): ParsedTemplate {
   const result = parser(lexer(code))
+  const source = `
+  let $$ = '';
+
+  function $__append (exp, escape) {
+    if (exp == undefined || exp == null) {
+      return;
+    }
+    
+    if (escape) {
+      $$ += String(exp)
+        .replace(/&/gim, '&amp;')
+        .replace(/</gim, '&lt;')
+        .replace(/>/gim, '&gt;');
+    } else {
+      $$ += String(exp);
+    }
+  };
+
+  with (Object.assign({ $$: undefined }, locals)) {
+    ${result}
+  };
+
+  return $$;`
 
   return {
-    code: result,
-    // eslint-disable-next-line
-    render: new Function('$', '$data', `with ($data) {${result}}`).bind(
-      null,
-      utils
-    ),
-    renderAsync: new AsyncFunction(
-      '$',
-      '$data',
-      `with ($data) {${result}}`
-    ).bind(null, utils)
+    source,
+    render: new Function('locals', source) as any,
+    renderAsync: new AsyncFunction('locals', source)
   }
 }
 
@@ -146,10 +126,10 @@ export async function parseAsync(code: string): Promise<ParsedTemplate> {
   })
 }
 
-export function render (code:string, data: Record<string, any> = {}) {
+export function render(code: string, data: Record<string, any> = {}) {
   return parse(code).render(data)
 }
 
-export async function renderAsync (code:string, data: Record<string, any> = {}) {
+export async function renderAsync(code: string, data: Record<string, any> = {}) {
   return parseAsync(code).then(jstpl => jstpl.renderAsync(data))
 }

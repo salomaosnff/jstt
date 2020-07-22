@@ -38,12 +38,11 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderAsync = exports.render = exports.parseAsync = exports.parse = void 0;
 var tokenTypes = [
-    { name: 'comment', test: /^<#((?:.|\s)*?)(?:#>)/ },
-    { name: 'text', test: /^(?:<\?|\s*<!)=(.*?)(?:\?>|!>\s*)/ },
-    { name: 'html', test: /^(?:<\?|\s*<!)-(.*?)(?:\?>|!>\s*)/ },
-    { name: 'code', test: /^(?:<\?|\s*<!)(.*?)(?:\?>|!>\s*)/ },
-    { name: 'content', test: /^((?:.|\s)+?)(?:([\s]*<!|<\?))/ },
-    { name: 'content', test: /^(.+)/ },
+    { name: 'comment', test: /^(?:<#|\s*<!#)((?:.|\s)*?)(?:#>|#!>\s*)/ },
+    { name: 'text', test: /^(?:\s*<!|<\?)=((?:.|\s)*?)(?:!>\s*|\?>)/ },
+    { name: 'raw', test: /^(?:\s*<!|<\?)-((?:.|\s)*?)(?:!>\s*|\?>)/ },
+    { name: 'code', test: /^(?:\s*<!|<\?)((?:.|\s)*?)(?:!>\s*|\?>)/ },
+    { name: 'content', test: /^((?:.|\s)+?)(<\?|<#|\s*<!|\s*<!#)|(?:.|\s)+/ },
 ];
 function lexer(code) {
     var tokens = [];
@@ -53,16 +52,17 @@ function lexer(code) {
             var type = tokenTypes_1[_i];
             match = type.test.exec(code);
             if (match) {
-                tokens.push({
+                var token = {
                     type: type.name,
-                    match: match
-                });
-                if (type.name === 'content') {
-                    code = code.substr(match[1].length);
+                    content: match[1] || match[0],
+                };
+                if (token.type !== 'content') {
+                    code = code.substring(match[0].length);
                 }
                 else {
-                    code = code.substr(match[0].length);
+                    code = code.substring(token.content.length);
                 }
+                tokens.push(token);
                 break;
             }
         }
@@ -72,69 +72,36 @@ function lexer(code) {
     }
     return tokens;
 }
-var utils = {
-    safeText: function (text) {
-        return String(text)
-            .replace(/&/gim, '&amp;')
-            .replace(/</gim, '&lt;')
-            .replace(/>/gim, '&gt;');
-    }
-};
 function quote(text) {
-    return '`' + text + '`';
-}
-function append(exp) {
-    return "$$ += " + exp + ";\n";
-}
-function util(name) {
-    var args = [];
-    for (var _i = 1; _i < arguments.length; _i++) {
-        args[_i - 1] = arguments[_i];
-    }
-    return "$." + name + "(" + args.join(', ') + ")";
-}
-function flush() {
-    return '\nreturn $$;';
+    return '`' + text.replace('`', '\\`') + '`';
 }
 function parser(tokens) {
-    var code = "let $$ = '';\n";
+    var code = '';
     while (tokens.length) {
         var token = tokens.shift();
         if (token.type === 'comment')
             continue;
         if (token.type === 'content') {
-            code += append(quote(token.match[1]));
-            continue;
+            code += "$__append(" + quote(token.content) + ");\n";
         }
-        if (token.type === 'text' || token.type === 'html') {
-            var exp = String(token.match[1]).trim();
-            if (token.type === 'text') {
-                code += append(util('safeText', exp));
-            }
-            else {
-                code += append(exp);
-            }
-            continue;
+        else if (token.type === 'text' || token.type === 'raw') {
+            code += "$__append(" + String(token.content).trim() + ", " + (token.type === 'text') + ");\n";
         }
-        if (token.type === 'code') {
-            code += token.match[1] + '\n';
-        }
-        if (token.type === 'end_code') {
-            continue;
+        else if (token.type === 'code') {
+            code += token.content + ";\n";
         }
     }
-    code += flush();
     return code;
 }
 // eslint-disable-next-line
 var AsyncFunction = eval('Object.getPrototypeOf(async function() {}).constructor');
 function parse(code) {
     var result = parser(lexer(code));
+    var source = "\n  let $$ = '';\n\n  function $__append (exp, escape) {\n    if (exp == undefined || exp == null) {\n      return;\n    }\n    \n    if (escape) {\n      $$ += String(exp)\n        .replace(/&/gim, '&amp;')\n        .replace(/</gim, '&lt;')\n        .replace(/>/gim, '&gt;');\n    } else {\n      $$ += String(exp);\n    }\n  };\n\n  with (Object.assign({ $$: undefined }, locals)) {\n    " + result + "\n  };\n\n  return $$;";
     return {
-        code: result,
-        // eslint-disable-next-line
-        render: new Function('$', '$data', "with ($data) {" + result + "}").bind(null, utils),
-        renderAsync: new AsyncFunction('$', '$data', "with ($data) {" + result + "}").bind(null, utils)
+        source: source,
+        render: new Function('locals', source),
+        renderAsync: new AsyncFunction('locals', source)
     };
 }
 exports.parse = parse;

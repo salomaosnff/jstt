@@ -1,5 +1,5 @@
 interface ParsedTemplate {
-    code: string;
+    source: string;
     render(data: Record<string, any>): string;
     renderAsync(data: Record<string, any>): Promise<string>;
 }
