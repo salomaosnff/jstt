@@ -1,10 +1,10 @@
 const tokenTypes = [
-  { name: 'comment', test: /^(?:<#|\s*<!#)((?:.|\s)*?)(?:#>|#!>\s*)/ },
-  { name: 'text', test: /^(?:\s*<!|<\?)=((?:.|\s)*?)(?:!>\s*|\?>)/ },
-  { name: 'raw', test: /^(?:\s*<!|<\?)-((?:.|\s)*?)(?:!>\s*|\?>)/ },
-  { name: 'code', test: /^(?:\s*<!|<\?)((?:.|\s)*?)(?:!>\s*|\?>)/ },
-  { name: 'content', test: /^((?:.|\s)+?)(<\?|<#|\s*<!|\s*<!#)|(?:.|\s)+/ },
+  { name: 'comment', test: /^(?:<#|\s*<!#)([\s\S]*?)(?:#>|#!>\s*)/ },
+  { name: 'raw', test: /^(?:\s*<!|<\?)([\-=])([\s\S]*?)(?:!>\s*|\?>)/ },
+  { name: 'code', test: /^(?:\s*<!|<\?)([\s\S]*?)(?:!>\s*|\?>)/ },
+  { name: 'content', test: /^([\s\S]*?)(?:<\?|\s*<![#\-=]?)|(?:[\s\S]+)/ },
 ]
+const tokenTypesLen = tokenTypes.length;
 
 interface ParsedTemplate {
   source: string
@@ -18,22 +18,28 @@ function lexer(code: string) {
   while (code) {
     let match: RegExpMatchArray | null | undefined
 
-    for (const type of tokenTypes) {
+    for (let i = 0; i < tokenTypesLen; i++) {
+      const type = tokenTypes[i]
       match = type.test.exec(code)
-
       
       if (match) {
         const token = {
           type: type.name,
           content: match[1] || match[0],
+          escape: false
+        }
+
+        if (token.type === 'raw') {
+          token.content = match[2]
+          token.escape = match[1] === '='
         }
         
-        if (token.type !== 'content') {
-          code = code.substring(match[0].length)
-        } else {
+        if (token.type === 'content') {
           code = code.substring(token.content.length)
+        } else {
+          code = code.substring(match[0].length)
         }
-        
+
         tokens.push(token)
         
         break
@@ -41,7 +47,7 @@ function lexer(code: string) {
     }
 
     if (!match) {
-      code = code.substr(1)
+      throw new Error(`Invalid token "${code[0]}"`)
     }
   }
 
@@ -54,22 +60,26 @@ function quote(text: string) {
 
 function parser(tokens: any[]) {
   let code = '';
+  let len = tokens.length;
   
-  while (tokens.length) {
-    let token = tokens.shift()
+  for (let i = 0; i < len; i++) {
+    let token = tokens[i]
     
     if (token.type === 'comment') continue
 
     if (token.type === 'content') {
-      code += `$__append(${quote(token.content)});\n`
+      code += `; $__append(${quote(token.content)})\n`
+      continue
     }
 
-    else if (token.type === 'text' || token.type === 'raw') {
-      code += `$__append(${String(token.content).trim()}, ${token.type === 'text'});\n`
+    if (token.type === 'raw') {
+      code += `; $__append(${String(token.content).trim()}, ${token.escape})\n`
+      continue
     }
 
-    else if (token.type === 'code') {
-      code += `${token.content};\n`
+    if (token.type === 'code') {
+      code += `; ${token.content}\n`
+      continue
     }
   }
 

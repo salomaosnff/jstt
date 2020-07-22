@@ -38,36 +38,41 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderAsync = exports.render = exports.parseAsync = exports.parse = void 0;
 var tokenTypes = [
-    { name: 'comment', test: /^(?:<#|\s*<!#)((?:.|\s)*?)(?:#>|#!>\s*)/ },
-    { name: 'text', test: /^(?:\s*<!|<\?)=((?:.|\s)*?)(?:!>\s*|\?>)/ },
-    { name: 'raw', test: /^(?:\s*<!|<\?)-((?:.|\s)*?)(?:!>\s*|\?>)/ },
-    { name: 'code', test: /^(?:\s*<!|<\?)((?:.|\s)*?)(?:!>\s*|\?>)/ },
-    { name: 'content', test: /^((?:.|\s)+?)(<\?|<#|\s*<!|\s*<!#)|(?:.|\s)+/ },
+    { name: 'comment', test: /^(?:<#|\s*<!#)([\s\S]*?)(?:#>|#!>\s*)/ },
+    { name: 'raw', test: /^(?:\s*<!|<\?)([\-=])([\s\S]*?)(?:!>\s*|\?>)/ },
+    { name: 'code', test: /^(?:\s*<!|<\?)([\s\S]*?)(?:!>\s*|\?>)/ },
+    { name: 'content', test: /^([\s\S]*?)(?:<\?|\s*<![#\-=]?)|(?:[\s\S]+)/ },
 ];
+var tokenTypesLen = tokenTypes.length;
 function lexer(code) {
     var tokens = [];
     while (code) {
         var match = void 0;
-        for (var _i = 0, tokenTypes_1 = tokenTypes; _i < tokenTypes_1.length; _i++) {
-            var type = tokenTypes_1[_i];
+        for (var i = 0; i < tokenTypesLen; i++) {
+            var type = tokenTypes[i];
             match = type.test.exec(code);
             if (match) {
                 var token = {
                     type: type.name,
                     content: match[1] || match[0],
+                    escape: false
                 };
-                if (token.type !== 'content') {
-                    code = code.substring(match[0].length);
+                if (token.type === 'raw') {
+                    token.content = match[2];
+                    token.escape = match[1] === '=';
+                }
+                if (token.type === 'content') {
+                    code = code.substring(token.content.length);
                 }
                 else {
-                    code = code.substring(token.content.length);
+                    code = code.substring(match[0].length);
                 }
                 tokens.push(token);
                 break;
             }
         }
         if (!match) {
-            code = code.substr(1);
+            throw new Error("Invalid token \"" + code[0] + "\"");
         }
     }
     return tokens;
@@ -77,18 +82,22 @@ function quote(text) {
 }
 function parser(tokens) {
     var code = '';
-    while (tokens.length) {
-        var token = tokens.shift();
+    var len = tokens.length;
+    for (var i = 0; i < len; i++) {
+        var token = tokens[i];
         if (token.type === 'comment')
             continue;
         if (token.type === 'content') {
-            code += "$__append(" + quote(token.content) + ");\n";
+            code += "; $__append(" + quote(token.content) + ")\n";
+            continue;
         }
-        else if (token.type === 'text' || token.type === 'raw') {
-            code += "$__append(" + String(token.content).trim() + ", " + (token.type === 'text') + ");\n";
+        if (token.type === 'raw') {
+            code += "; $__append(" + String(token.content).trim() + ", " + token.escape + ")\n";
+            continue;
         }
-        else if (token.type === 'code') {
-            code += token.content + ";\n";
+        if (token.type === 'code') {
+            code += "; " + token.content + "\n";
+            continue;
         }
     }
     return code;
