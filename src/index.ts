@@ -1,10 +1,9 @@
 const tokenTypes = [
-  { name: 'comment', test: /^<#((?:.|\s)*?)(?:#>)/ },
-  { name: 'text', test: /^(?:<\?|\s*<!)=(.*?)(?:\?>|!>\s*)/ },
-  { name: 'html', test: /^(?:<\?|\s*<!)-(.*?)(?:\?>|!>\s*)/ },
-  { name: 'code', test: /^(?:<\?|\s*<!)(.*?)(?:\?>|!>\s*)/ },
-  { name: 'content', test: /^((?:.|\s)+?)(?:([\s]*<!|<\?))/ },
-  { name: 'content', test: /^(.+)/ },
+  { name: 'comment', test: /^(?:<#|\s*<!#)((?:.|\s)*?)(?:#>|#!>\s*)/ },
+  { name: 'text', test: /^(?:\s*<!|<\?)=((?:.|\s)*?)(?:!>\s*|\?>)/ },
+  { name: 'raw', test: /^(?:\s*<!|<\?)-((?:.|\s)*?)(?:!>\s*|\?>)/ },
+  { name: 'code', test: /^(?:\s*<!|<\?)((?:.|\s)*?)(?:!>\s*|\?>)/ },
+  { name: 'content', test: /^((?:.|\s)+?)(<\?|<#|\s*<!|\s*<!#)|(?:.|\s)+/ },
 ]
 
 function lexer(code: string) {
@@ -17,17 +16,19 @@ function lexer(code: string) {
       match = type.test.exec(code)
       
       if (match) {
-        tokens.push({
-          type: type.name, 
-          match 
-        })
-        
-        if (type.name === 'content') {
-          code = code.substr(match[1].length)
-        } else {
-          code = code.substr(match[0].length)
+        const token = {
+          type: type.name,
+          content: match[1] || match[0]
         }
 
+        if (token.type === 'text' || token.type === 'raw' || token.type === 'comment') {
+          code = code.substring(match[0].length)
+        } else {
+          code = code.substring(token.content.length)
+        }
+
+        tokens.push(token)
+        
         break
       }
     }
@@ -36,6 +37,7 @@ function lexer(code: string) {
       code = code.substr(1)
     }
   }
+
   return tokens
 }
 
@@ -73,12 +75,12 @@ function parser(tokens: any[]) {
     if (token.type === 'comment') continue
 
     if (token.type === 'content') {
-      code += append(quote(token.match[1]))
+      code += append(quote(token.content))
       continue
     }
 
-    if (token.type === 'text' || token.type === 'html') {
-      const exp = String(token.match[1]).trim()
+    if (token.type === 'text' || token.type === 'raw') {
+      const exp = String(token.content).trim()
 
       if (token.type === 'text') {
         code += append(util('safeText', exp))
@@ -90,7 +92,7 @@ function parser(tokens: any[]) {
     }
 
     if (token.type === 'code') {
-      code += token.match[1] + '\n'
+      code += token.content + '\n'
     }
 
     if (token.type === 'end_code') {
