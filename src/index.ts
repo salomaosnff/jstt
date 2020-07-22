@@ -96,7 +96,7 @@ export function parse(code: string): ParsedTemplate {
   const source = `
   let $$ = '';
 
-  function $__append (exp, escape) {
+  const $__append = (exp, escape) => {
     if (exp == undefined || exp == null) {
       return;
     }
