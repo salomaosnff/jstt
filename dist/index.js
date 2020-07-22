@@ -106,7 +106,7 @@ function parser(tokens) {
 var AsyncFunction = eval('Object.getPrototypeOf(async function() {}).constructor');
 function parse(code) {
     var result = parser(lexer(code));
-    var source = "\n  let $$ = '';\n\n  function $__append (exp, escape) {\n    if (exp == undefined || exp == null) {\n      return;\n    }\n    \n    if (escape) {\n      $$ += String(exp)\n        .replace(/&/gim, '&amp;')\n        .replace(/</gim, '&lt;')\n        .replace(/>/gim, '&gt;');\n    } else {\n      $$ += String(exp);\n    }\n  };\n\n  with (Object.assign({ $$: undefined }, locals)) {\n    " + result + "\n  };\n\n  return $$;";
+    var source = "\n  let $$ = '';\n\n  const $__append = (exp, escape) => {\n    if (exp == undefined || exp == null) {\n      return;\n    }\n    \n    if (escape) {\n      $$ += String(exp)\n        .replace(/&/gim, '&amp;')\n        .replace(/</gim, '&lt;')\n        .replace(/>/gim, '&gt;');\n    } else {\n      $$ += String(exp);\n    }\n  };\n\n  with (Object.assign({ $$: undefined }, locals)) {\n    " + result + "\n  };\n\n  return $$;";
     return {
         source: source,
         render: new Function('locals', source),
